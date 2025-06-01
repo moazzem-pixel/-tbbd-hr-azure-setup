@@ -1,0 +1,64 @@
+trigger:
+•⁠  ⁠main  # Trigger on main branch commits
+
+pool:
+  vmImage: 'windows-2022'
+
+variables:
+  solution: '*/.sln'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+  outputDir: '$(Build.ArtifactStagingDirectory)/publish'
+
+steps:
+
+# Step 1: Install .NET 8 SDK
+•⁠  ⁠task: UseDotNet@2
+  displayName: 'Install .NET 8 SDK'
+  inputs:
+    packageType: 'sdk'
+    version: '8.0.x'
+
+# Step 2: Install NuGet
+•⁠  ⁠task: NuGetToolInstaller@1
+  displayName: 'Install NuGet'
+
+# Step 3: Restore NuGet packages
+•⁠  ⁠task: NuGetCommand@2
+  displayName: 'NuGet Restore'
+  inputs:
+    restoreSolution: '$(solution)'
+
+# Step 4: Build the solution
+•⁠  ⁠task: VSBuild@1
+  displayName: 'Build Solution'
+  inputs:
+    solution: '$(solution)'
+    platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'
+
+# Step 5: Publish the project (generates deployable files)
+•⁠  ⁠task: DotNetCoreCLI@2
+  displayName: 'Publish Project'
+  inputs:
+    command: 'publish'
+    publishWebProjects: true
+    arguments: '--configuration $(buildConfiguration) --output $(outputDir)'
+    zipAfterPublish: true
+
+# Step 6: Upload artifacts (optional but recommended)
+•⁠  ⁠task: PublishBuildArtifacts@1
+  displayName: 'Publish Artifacts'
+  inputs:
+    PathtoPublish: '$(outputDir)'
+    ArtifactName: 'drop'
+    publishLocation: 'Container'
+
+# Step 7: Deploy to Azure Web App
+•⁠  ⁠task: AzureWebApp@1
+  displayName: 'Deploy to Azure Web App'
+  inputs:
+    azureSubscription: 'TBBD-HR-Portal-DevOps-Conn'
+    appType: 'webApp'
+    appName: 'LTBD-EventMachine'
+    package: '$(outputDir)/*.zip'
